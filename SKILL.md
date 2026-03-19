@@ -292,7 +292,7 @@ osascript -e 'tell application "Notes" to get name of every note of first folder
 ### Read A Note Body By Title
 
 ```sh
-osascript -e 'tell application "Notes" to get body of note "Apple Notes Skill Draft" of first folder'
+osascript -e 'tell application "Notes" to get body of note "Apple Notes Skill" of first folder'
 ```
 
 ### Create A New Note
@@ -301,8 +301,20 @@ osascript -e 'tell application "Notes" to get body of note "Apple Notes Skill Dr
 tell application "Notes"
 	activate
 	set targetFolder to first folder
-	make new note at targetFolder with properties {name:"Apple Notes Skill Draft", body:"<h1>Apple Notes Skill Draft</h1><br><div>Content</div>"}
+	make new note at targetFolder with properties {name:"Apple Notes Skill", body:"<h1>Apple Notes Skill</h1><br><div>Content</div>"}
 end tell
+```
+
+### Create A New Note From The Shell
+
+```sh
+osascript <<'EOF'
+tell application "Notes"
+	activate
+	set targetFolder to first folder
+	make new note at targetFolder with properties {name:"Apple Notes Skill", body:"<h1>Apple Notes Skill</h1><br><div>Content</div>"}
+end tell
+EOF
 ```
 
 Only add more code examples after validating them against the current machine.

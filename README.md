@@ -266,7 +266,7 @@ This skill was refined through actual use, not just theory.
 Validated scenarios:
 
 - reading and searching Apple Notes folders and notes
-- creating and updating a skill draft note
+- creating and updating a skill note
 - writing a structured article summary into Apple Notes
 - reorganizing a large folder of 589 notes
 - deleting confirmed-empty folders after reorganization
