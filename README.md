@@ -8,6 +8,15 @@ This project is for people who want an agent to work with Apple Notes reliably w
 
 Apple Notes is useful as a long-term working memory, inbox, and writing space, but agent access is awkward in practice.
 
+It also has a practical product advantage:
+
+- built into macOS
+- free
+- syncs across Apple devices
+- can replace part of what people use Obsidian or Notion for
+
+This skill helps agents make better use of the system Notes app instead of forcing users into a separate tool stack.
+
 Common problems:
 
 - Agents waste time re-testing multiple access methods
@@ -33,6 +42,7 @@ This is especially useful for:
 - saving project progress into Notes
 - saving processed content into Notes
 - reusing Apple Notes as a continuity layer across sessions
+- reading existing project notes as working context before continuing a task
 
 ## Scope
 
@@ -47,6 +57,12 @@ This skill covers Apple Notes operations:
 - delete notes with caution
 - batch-organize messy note collections
 - write content with cleaner structure
+
+In practice, this also supports a continuity workflow:
+
+- read the existing project note
+- recover the current status, decisions, and next steps
+- continue writing into the same note instead of starting from zero
 
 This skill does not try to do everything.
 
@@ -123,11 +139,9 @@ Examples of useful flat folders:
 - large-scale classification by title is practical, but not perfect
 - some note sets contain mixed forms: topic notes, dialogue snippets, abstract fragments
 
-## Current Status
-
-This repository is an intentionally small `v0.1` style draft:
+## Repository Structure
 
 - `SKILL.md` contains the actual skill instructions
 - `README.md` explains what the skill is for and how to think about it
 
-The next step is not complexity. The next step is more real usage and tighter gotchas.
+The project is intentionally small. The goal is not more complexity; the goal is better real-world reliability.
