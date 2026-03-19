@@ -2,7 +2,11 @@
 
 A lightweight Apple Notes skill for AI agents on macOS.
 
-This project is for people who want an agent to work with Apple Notes reliably without re-discovering the access method every time. It focuses on practical Apple Notes operations, not on general summarization, translation, or knowledge work.
+This project is for people who want an agent to work with Apple Notes reliably without re-discovering the access method every time.
+
+Most Apple Notes integrations are either missing, too heavy, or require extra installation. Even when an agent has already used a working Apple Notes path once, it often forgets and starts testing from zero again.
+
+This skill fixes that by freezing a simple native workflow that has already been validated in real use.
 
 ## Why This Exists
 
