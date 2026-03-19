@@ -89,9 +89,91 @@ Why this approach:
 - no third-party installation required
 - already validated in real note reads, writes, appends, moves, and folder cleanup
 
+## Installation
+
+This repo is just a skill folder. Installation is usually: place the folder where your agent loads custom skills from.
+
+### Codex
+
+Copy this repo into your Codex skills directory, for example:
+
+```sh
+cp -R apple-notes-skill ~/.codex/skills/apple-notes
+```
+
+### Claude Code
+
+For repo-local usage, place it under:
+
+```text
+./.claude/skills/apple-notes
+```
+
+or in whatever shared Claude skills location your setup uses.
+
+### Other agents
+
+If your agent supports filesystem-based skills, copy this folder into that agent's skill directory and make sure it can read `SKILL.md`.
+
+The minimum requirement is simple:
+
+- the agent can load a skill from disk
+- the agent can run `osascript`
+- the agent has permission to automate Apple Notes
+
+## macOS Permission Setup
+
+The first time an agent tries to control Apple Notes, macOS may ask for Automation permission.
+
+If access fails, check:
+
+- `System Settings > Privacy & Security > Automation`
+- allow the terminal or agent app to control `Notes`
+
+Without this permission, the skill will not work reliably.
+
+## How To Use
+
+After installation, invoke the skill by asking the agent to do Apple Notes work directly.
+
+Examples:
+
+- `Read my Apple Notes project note for X and continue from there`
+- `Search Apple Notes for notes about Y`
+- `Create an Apple Note for this summary`
+- `Move these notes into better folders`
+- `Organize my uncategorized Apple Notes`
+
+The intended flow is:
+
+1. the agent recognizes this is an Apple Notes task
+2. it loads `SKILL.md`
+3. it uses the validated `osascript` path
+4. it follows the safety and formatting rules in the skill
+
+## Cross-Agent Compatibility
+
+This skill is designed to be portable at the content level.
+
+What is portable:
+
+- the instructions in `SKILL.md`
+- the folder strategy
+- the workflow rules
+- the formatting rules
+- the gotchas
+
+What may vary by agent:
+
+- where the skill folder is installed
+- how the agent discovers skills
+- how much shell / AppleScript access the agent has
+
+So the main adaptation point is installation, not the core skill logic.
+
 ## Real Scenarios This Was Tested On
 
-This draft was refined through actual use, not just theory.
+This skill was refined through actual use, not just theory.
 
 Validated scenarios:
 
