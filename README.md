@@ -4,6 +4,29 @@ A lightweight Apple Notes skill for AI agents on macOS.
 
 This project is for people who want an agent to work with Apple Notes reliably without re-discovering the access method every time. It focuses on practical Apple Notes operations, not on general summarization, translation, or knowledge work.
 
+## Why This Exists
+
+This project is opinionated in a very specific way:
+
+- native first
+- simple first
+- no third-party dependency unless real usage proves it is needed
+
+That means:
+
+- use the Apple Notes app you already have
+- use macOS automation that already exists
+- avoid extra databases, MCP servers, vector layers, or third-party CLIs unless they are truly necessary
+
+For many users, this matters.
+
+The practical value is:
+
+- save money
+- reduce tool sprawl
+- reuse the Notes app that already syncs across Apple devices
+- replace part of what would otherwise go into Obsidian or Notion
+
 ## What It Solves
 
 Apple Notes is useful as a long-term working memory, inbox, and writing space, but agent access is awkward in practice.
@@ -26,6 +49,15 @@ Common problems:
 - Existing notes are easy to duplicate or overwrite by mistake
 
 This skill fixes that by freezing a simple, validated operating method and a set of practical rules.
+
+## Core Advantages
+
+- pure macOS-native approach
+- no required third-party install
+- no extra index, database, or server
+- real Apple Notes read / write / move workflows already tested
+- practical batch organization rules
+- designed for agents, not just for humans reading docs
 
 ## Who It Is For
 
@@ -88,6 +120,7 @@ Why this approach:
 - native to macOS
 - no third-party installation required
 - already validated in real note reads, writes, appends, moves, and folder cleanup
+- lower setup friction than more complex Apple Notes integrations
 
 ## Installation
 
@@ -252,5 +285,15 @@ Examples of useful flat folders:
 
 - `SKILL.md` contains the actual skill instructions
 - `README.md` explains what the skill is for and how to think about it
+- `CONTRIBUTING.md` explains how outside contributors can help
+- `LICENSE` is MIT
 
 The project is intentionally small. The goal is not more complexity; the goal is better real-world reliability.
+
+## Author
+
+- GitHub: [@lishix520](https://github.com/lishix520)
+
+## License
+
+MIT. See [LICENSE](./LICENSE).
