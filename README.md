@@ -148,6 +148,30 @@ For repo-local usage, place it under:
 
 or in whatever shared Claude skills location your setup uses.
 
+### OpenClaw
+
+OpenClaw supports AgentSkills-compatible local skill folders.
+
+You can install this skill in either of these places:
+
+```text
+~/.openclaw/skills/apple-notes
+```
+
+or:
+
+```text
+<workspace>/skills/apple-notes
+```
+
+Workspace skills take precedence over shared user-level skills.
+
+Example:
+
+```sh
+cp -R apple-notes-skill ~/.openclaw/skills/apple-notes
+```
+
 ### Other agents
 
 If your agent supports filesystem-based skills, copy this folder into that agent's skill directory and make sure it can read `SKILL.md`.
