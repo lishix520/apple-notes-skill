@@ -121,6 +121,33 @@ The minimum requirement is simple:
 - the agent can run `osascript`
 - the agent has permission to automate Apple Notes
 
+## Installing Through An Agent
+
+If an agent can read this repository and has filesystem access, it can usually install the skill for you.
+
+In practice, giving the agent the repository URL is not the same as installing the skill. The agent still needs to:
+
+1. clone or download the repo
+2. copy the folder into the correct local skills directory
+3. make sure the agent can discover `SKILL.md`
+
+Example prompts:
+
+- `Install this Apple Notes skill from https://github.com/lishix520/apple-notes-skill into my Codex skills directory`
+- `Clone this repo and place it under .claude/skills/apple-notes`
+- `Set this up as a local skill and verify the agent can see SKILL.md`
+
+Example install command for Codex:
+
+```sh
+cp -R apple-notes-skill ~/.codex/skills/apple-notes
+```
+
+So the short version is:
+
+- repository URL lets the agent fetch the skill
+- installation still requires placing it in the right local folder
+
 ## macOS Permission Setup
 
 The first time an agent tries to control Apple Notes, macOS may ask for Automation permission.
