@@ -229,141 +229,100 @@ Short summary.
 
 ## Notes
 
-- Observation
+- Note
 ```
-
-### General Structured Note
-
-Use:
-
-```md
-# Title
-
-## Context
-
-Short context.
-
-## Details
-
-- Item
-
-## Next Steps
-
-- Item
-```
-
-## Safety Rules
-
-- Do not overwrite an entire note unless explicitly asked
-- Do not move notes when the destination is uncertain
-- Do not delete notes casually
-- Do not create duplicate notes if search can resolve the target
-- Do not dump raw text into a note without formatting
-- Do not keep retrying random Apple Notes access methods
-
-## Good Defaults
-
-- Search first
-- Append second
-- Create only when necessary
-- Format before writing
-- Ask before destructive actions
 
 ## Verified `osascript` Patterns
 
-These patterns were validated on this machine. Reuse them before inventing new Apple Notes access methods.
+Use shell-wrapped `osascript` blocks when there is any risk the agent may accidentally paste AppleScript directly into `zsh`.
 
-### Get First Folder Name
+### List all folders
 
-```sh
-osascript -e 'tell application "Notes" to get name of first folder'
+```bash
+osascript -e 'tell application "Notes" to get name of every folder'
 ```
 
-### List Note Names In First Folder
+### Read a note body
 
-```sh
-osascript -e 'tell application "Notes" to get name of every note of first folder'
+```bash
+osascript -e 'tell application "Notes" to get body of note "Apple Notes Skill Reference" of first folder'
 ```
 
-### Search Note Names By Title Fragment
+### Search notes in a folder by title
 
-```sh
-osascript -e 'tell application "Notes" to get name of every note of first folder whose name contains "Apple Notes"'
+```bash
+osascript -e 'tell application "Notes" to get name of every note of folder "输出/学习笔记" whose name contains "Apple Notes"'
 ```
 
-### Read A Note Body By Title
+### Create a new note with multi-line shell input
 
-```sh
-osascript -e 'tell application "Notes" to get body of note "Apple Notes Skill" of first folder'
-```
-
-### Create A New Note
-
-```applescript
-tell application "Notes"
-	activate
-	set targetFolder to first folder
-	make new note at targetFolder with properties {name:"Apple Notes Skill", body:"<h1>Apple Notes Skill</h1><br><div>Content</div>"}
-end tell
-```
-
-### Create A New Note From The Shell
-
-```sh
+```bash
 osascript <<'EOF'
 tell application "Notes"
-	activate
-	set targetFolder to first folder
-	make new note at targetFolder with properties {name:"Apple Notes Skill", body:"<h1>Apple Notes Skill</h1><br><div>Content</div>"}
+    activate
+    tell folder "Claude 协作"
+        make new note with properties {name:"Apple Notes Skill", body:"<h1>Apple Notes Skill</h1><br><div>Structured content goes here.</div>"}
+    end tell
 end tell
 EOF
 ```
 
-Only add more code examples after validating them against the current machine.
+### Append content carefully
 
-## HTML Read And Write Notes
+Default pattern:
 
-Apple Notes bodies often come back as HTML-ish content such as `<div>`, `<br>`, `<span>`, and inline styles.
-
-When reading:
-
-- Expect HTML in `body`
-- Extract the useful text instead of trusting the raw string as final output
-- Preserve structure when the note clearly contains headings or lists
-
-When writing:
-
-- Use explicit line breaks
-- Prefer simple HTML structures over fancy rich text
-- Keep the layout readable after Apple Notes renders it
-- Validate that the written result is not collapsed into one dense block
+- Read the existing body first
+- Preserve structure
+- Append a new section instead of overwriting the entire note unless explicitly requested
 
 ## Error Handling
 
-- If the target folder does not exist, create it first, then continue
-- If search returns multiple note candidates, narrow the target before editing or moving
-- If a note already exists, prefer update or append over duplicate creation
-- If a write command succeeds but formatting looks wrong, adjust the HTML structure instead of retrying random access methods
-- If Apple Notes automation fails, report the exact failing command and stop instead of switching tools blindly
+When a Notes action fails:
 
-## Batch Organization Gotchas
+- Check whether Automation permission is blocked
+- Check whether the folder exists
+- Check whether the note title is ambiguous
+- Retry the same validated method before inventing a new one
 
-These were learned from reorganizing a large real Apple Notes folder.
+If a destination folder does not exist:
 
-- Do not assume nested folder naming is worth it. Flat names worked better in practice.
-- Do not force every note into a clean abstract taxonomy. Real note sets include themes, fragments, and dialogue snippets.
-- Large folders should be organized in multiple passes, not one giant classification leap.
-- Use title-based classification first when it is clearly good enough. This is fast and practical.
-- Keep a catch-all destination such as `思辨片段` for leftovers that are still useful but too ambiguous.
-- Keep a separate folder such as `对话摘录` for conversational notes that are structurally different from topic notes.
-- Delete empty folders after verification, not before.
-- For destructive cleanup, count notes before and after the move.
+- Create it first
+- Then create or move the note
 
-## Known Limitations
+If multiple notes share the same title:
 
-Apple Notes automation can be fragile. When using this skill:
+- Narrow by folder or related keywords before editing or moving
 
-- Expect occasional scripting or permission issues
-- Verify the note or folder target before high-risk actions
-- Treat formatting carefully because Apple Notes is less predictable than plain Markdown files
-- Prefer simple, readable structures that survive copy/write operations cleanly
+## Limitations
+
+Keep these in mind:
+
+- Apple Notes access depends on macOS Automation permission
+- Rich text body may be returned as HTML-like content
+- Reading may expose HTML tags such as `<div>` or `<br>`
+- Writing should use Apple Notes friendly structure and line breaks
+- Apple Notes organization is simpler and flatter than full document systems
+
+When reading note bodies:
+
+- Be aware that the raw body may include HTML-ish markup
+- Normalize the content mentally before interpreting structure
+
+When writing note bodies:
+
+- Use headings, paragraphs, and explicit spacing
+- Do not dump one giant block of text
+
+## Coordination With Other Skills
+
+This skill handles Apple Notes operations.
+
+Upstream work can be done by other skills or by the agent itself:
+
+- article reading
+- paper reading
+- summary
+- translation
+- extraction
+
+Do that work first, then use this skill to save or update the final result in Apple Notes.

@@ -8,6 +8,12 @@ Most Apple Notes integrations are either missing, too heavy, or require extra in
 
 This skill fixes that by freezing a simple native workflow that has already been validated in real use.
 
+It is now structured to work as:
+
+- a direct local skill for Codex, Claude Code, OpenClaw, and Hermes
+- a GitHub-installable AgentSkills-compatible repo
+- a publishable skill source for registries that expect a `skills/` directory
+
 ## Why This Exists
 
 This project is opinionated in a very specific way:
@@ -62,6 +68,7 @@ This skill fixes that by freezing a simple, validated operating method and a set
 - real Apple Notes read / write / move workflows already tested
 - practical batch organization rules
 - designed for agents, not just for humans reading docs
+- easier to contribute upstream than memo-based or MCP-heavy alternatives
 
 ## Who It Is For
 
@@ -128,7 +135,12 @@ Why this approach:
 
 ## Installation
 
-This repo is just a skill folder. Installation is usually: place the folder where your agent loads custom skills from.
+This repo supports two layouts:
+
+- root skill folder for simple local installs
+- `skills/apple-notes/` for GitHub and registry-style installs
+
+Installation is usually: place the skill folder where your agent loads custom skills from.
 
 ### Codex
 
@@ -171,6 +183,24 @@ Example:
 ```sh
 cp -R apple-notes-skill ~/.openclaw/skills/apple-notes
 ```
+
+OpenClaw also supports workspace-scoped installs and ClawHub/community distribution. Its docs say skills are AgentSkills-compatible folders with YAML frontmatter, and `metadata` should be a single-line JSON object. This repo now includes that compatibility metadata in `SKILL.md`. [OpenClaw Skills docs](https://docs.openclaw.ai/tools/skills)
+
+### Hermes
+
+Hermes stores skills in:
+
+```text
+~/.hermes/skills/
+```
+
+Example local install:
+
+```sh
+cp -R apple-notes-skill/skills/apple-notes ~/.hermes/skills/apple-notes
+```
+
+Hermes also supports direct GitHub skills and custom taps, and treats installed skills as slash commands. It documents compatibility with the `agentskills.io` open standard. [Hermes Skills docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills/) [Hermes Working with Skills](https://hermes-agent.nousresearch.com/docs/guides/work-with-skills/)
 
 ### Other agents
 
@@ -258,6 +288,30 @@ What may vary by agent:
 - how much shell / AppleScript access the agent has
 
 So the main adaptation point is installation, not the core skill logic.
+
+## Publishing And Upstream Contribution
+
+If you want this skill to replace heavier built-in Apple Notes skills in OpenClaw or Hermes, the practical path is:
+
+1. keep this repo as the canonical source
+2. use `skills/apple-notes/` as the publishable skill path
+3. submit it to a registry or install from GitHub
+4. then open an upstream PR or issue pointing to a tested native alternative
+
+Why this path is better than patching bundled skills first:
+
+- easier to iterate independently
+- easier for maintainers to test
+- lower risk than asking them to merge an immediate replacement
+- works even if upstream never merges it
+
+For registries:
+
+- SKILLS.re expects a repository with a `skills/` folder containing at least one `SKILL.md` file. [SKILLS.re submit](https://skills.re/submit)
+
+For Hermes:
+
+- Hermes can publish a local skill directory to GitHub with `hermes skills publish ...` and can install direct GitHub skills and other registries. [Hermes Working with Skills](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills/)
 
 ## Real Scenarios This Was Tested On
 
