@@ -5,98 +5,78 @@ homepage: https://github.com/lishix520/apple-notes-skill
 metadata: {"openclaw":{"emoji":"📝","homepage":"https://github.com/lishix520/apple-notes-skill","os":["darwin"],"requires":{"bins":["osascript"]}}}
 ---
 
-# Apple Notes Skill (v0.2.0)
+# Apple Notes Skill (v0.3.0)
 
-Use this skill to automate Apple Notes on macOS through the provided helper script `notes.sh`.
+Use this skill to safely and robustly automate Apple Notes on macOS using the unified native wrapper script `./notes.sh`.
 
-## Agent Execution Rules
+## 7 Absolute Rules
 
-1. **Invoke Wrapper Script**: Always run commands via `./notes.sh` (or the local path to it). Do not write custom raw AppleScript.
-2. **Search Before Creating**: Search note titles first to check if a note already exists.
-3. **Append Over Overwrite**: Prefer appending new sections to existing notes rather than overwriting their entire body.
-4. **Destructive Actions**: Always verify the note title and folder name before moving or deleting. Never delete a note without explicit confirmation.
-5. **Escape Inputs**: Apple Notes bodies are HTML. Wrap plain text in `<div>` or `<p>` blocks when writing/appending. Escaping special characters is handled by the script.
-
----
-
-## Command Reference (CRUD & Query)
-
-The wrapper script `notes.sh` accepts the following arguments:
-
-### 1. Create Operations
-*   **Create Note**:
-    ```bash
-    ./notes.sh create-note "Note Title" "Folder Name" "<h1>Title</h1><div>HTML body content</div>"
-    ```
-    *Creates a new note. The folder is automatically created if it does not exist.*
-*   **Create Folder**:
-    ```bash
-    ./notes.sh create-folder "Folder Name"
-    ```
-    *Creates a folder if it does not exist.*
-
-### 2. Read Operations
-*   **Read Note Body**:
-    ```bash
-    ./notes.sh read-note "Note Title" ["Folder Name"]
-    ```
-    *Returns the HTML body of the note. Specify the folder for faster lookup and resolution of duplicate titles. If folder is omitted, it searches globally.*
-
-### 3. Update Operations
-*   **Append Note**:
-    ```bash
-    ./notes.sh append-note "Note Title" "Folder Name" "<div>Appended HTML content</div>"
-    ```
-    *Appends HTML content to the end of the existing note.*
-
-### 4. Delete & Move Operations
-*   **Move Note**:
-    ```bash
-    ./notes.sh move-note "Note Title" "Source Folder" "Destination Folder"
-    ```
-    *Moves a note between folders. Destination folder must exist.*
-*   **Delete Note**:
-    ```bash
-    ./notes.sh delete-note "Note Title" "Folder Name"
-    ```
-    *Deletes the note (moves to Recently Deleted).*
-
-### 5. Query & Info Operations
-*   **Search Notes Globally**:
-    ```bash
-    ./notes.sh search-notes "QueryText"
-    ```
-    *Lists matching notes across all folders as tab-separated: `<Folder>\t<Title>`.*
-*   **List Folders**:
-    ```bash
-    ./notes.sh list-folders
-    ```
-    *Lists all folder names, one per line.*
-*   **List Notes in Folder**:
-    ```bash
-    ./notes.sh list-notes "Folder Name"
-    ```
-    *Lists notes inside a folder as tab-separated: `<Title>\t<Modification Date>`.*
-*   **Get Modification Date**:
-    ```bash
-    ./notes.sh get-date "Note Title" "Folder Name"
-    ```
-    *Returns the modification date string of the note.*
-*   **Count All Notes**:
-    ```bash
-    ./notes.sh count-all
-    ```
-    *Returns the total number of notes in the app.*
-*   **Count Notes in Folder**:
-    ```bash
-    ./notes.sh count-folder "Folder Name"
-    ```
-    *Returns the total number of notes in the specified folder.*
+1. **Only use Wrapper**: Always invoke `./notes.sh`. Never write or execute custom raw AppleScript blocks.
+2. **Search Before Creating**: Always search note titles first using `search-notes` to check if a note already exists.
+3. **Use ID-based Targets**: For read, update, delete, and move operations, always use the ID-based commands (e.g., `read-note-id`).
+4. **Enforce CLI Confirmation**: Always append `--confirm` to destructive commands (`move-note-id`, `delete-note-id`, `delete-folder`) only *after* obtaining explicit user confirmation.
+5. **Format Safety**: Use `*-text` commands for safety-escaped plain text, and `*-html` commands only for trusted HTML bodies.
+6. **Handle Exit Codes**: Check exit status to handle errors programmatically (e.g., Code 4 for Ambiguity, Code 5 for Confirmation Required).
+7. **No Silence**: Never suppress command errors; report the exact command output when a command fails.
 
 ---
 
-## Output Behavior & Gotchas
+## Action Matrix
 
-*   **HTML format**: Apple Notes bodies return HTML tags (e.g. `<div>`, `<br>`). When reading notes, strip or parse tags to interpret text structure.
-*   **Error Handling**: If a command fails (e.g., folder not found), the script outputs to stderr and returns a non-zero code. Read the stderr output to diagnose and adjust arguments.
-*   **Ambiguity**: If multiple notes share the same title, prioritize specifying folder names to narrow down the target.
+| Intent | Command | Target Arguments | Pre-conditions |
+| :--- | :--- | :--- | :--- |
+| **Search Notes** | `search-notes` | `<query>` | None |
+| **List Folder Notes** | `list-notes` | `<folder>` | None |
+| **List Folders** | `list-folders` | None | None |
+| **Read note by ID** | `read-note-id` | `<note_id>` | Use `search-notes`/`list-notes` first to get ID |
+| **Read note by Title** | `read-note-title`| `<title> [folder]` | Use only if note title is unique |
+| **Create Text Note** | `create-note-text`| `<title> <folder> <plain_text>` | Search first to prevent duplicate titles |
+| **Create HTML Note** | `create-note-html`| `<title> <folder> <body_html>` | Search first to prevent duplicate titles |
+| **Create Folder** | `create-folder` | `<folder>` | None |
+| **Append Text** | `append-note-text`| `<note_id> <plain_text>` | Search first to get note ID |
+| **Append HTML** | `append-note-html`| `<note_id> <body_html>` | Search first to get note ID |
+| **Move Note** | `move-note-id` | `<note_id> <dest_folder> --confirm` | User confirmation required |
+| **Delete Note** | `delete-note-id` | `<note_id> --confirm` | User confirmation required |
+| **Delete Folder** | `delete-folder` | `<folder> --confirm` | User confirmation required |
+
+*Add `--json` globally to receive clean, parseable JSON results.*
+
+---
+
+## Exit Status Matrix
+
+- **`0`**: Success
+- **`2`**: Parameter/Syntax error (usage mismatch)
+- **`3`**: Resource Not Found (folder or note ID not found)
+- **`4`**: Ambiguity (multiple note matches found for title-based lookups)
+- **`5`**: Confirmation Required (refused destructive command because `--confirm` was missing)
+- **`6`**: Native AppleScript/JXA execution failure
+
+---
+
+## Usage Examples
+
+### 1. Retrieve a note's ID and Read its Content
+```bash
+./notes.sh --json search-notes "Daily Log"
+# Parser finds note ID "x-coredata://..."
+./notes.sh read-note-id "x-coredata://..."
+```
+
+### 2. Create and Append content safely
+```bash
+./notes.sh create-note-text "Project Alpha" "Inbox" "Initial project description."
+# Append dated updates safely
+./notes.sh append-note-text "x-coredata://..." $'\n- Update 2026-07-20: Done.'
+```
+
+### 3. Safely Delete a note (shows confirmation safeguard)
+```bash
+# First try without confirm:
+./notes.sh delete-note-id "x-coredata://..."
+# Output: Refusing destructive action... Exit code: 5.
+# Ask user, then run with --confirm:
+./notes.sh delete-note-id "x-coredata://..." --confirm
+```
+
+For complete CLI helper details, run `./notes.sh --help`.
