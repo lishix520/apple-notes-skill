@@ -1,0 +1,1 @@
+skills/apple-notes/notes.sh

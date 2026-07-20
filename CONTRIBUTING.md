@@ -1,23 +1,17 @@
 # Contributing
 
-Contributions are welcome.
+Contributions are welcome. Please keep changes practical and minimal.
 
-Useful contribution types:
+## Guidelines
 
-- improve Apple Notes workflows
-- add real-world gotchas
-- improve formatting or safety rules
-- contribute verified `osascript` patterns
-- refine folder organization strategies
+1. **Native Only**: Use only native macOS tools (`osascript`, Notes.app). Do not add third-party runtimes or dependencies.
+2. **Fixed Actions**: Modify `skills/apple-notes/notes.sh` to implement new behaviors or fix bugs. Keep command parameters clean and robust.
+3. **Verify Locally**: Test all command paths on local macOS before submitting changes.
+4. **Documentation**: Update `SKILL.md` if any command signatures change, and keep `README.md` lightweight.
 
-Please keep changes practical and small.
+## Pull Request Flow
 
-Guidelines:
-
-- prefer native macOS methods first
-- avoid adding third-party dependencies unless real usage clearly justifies them
-- favor simple and verifiable workflows
-- include gotchas and limitations when you add new behavior
-- avoid turning this project into a large framework
-
-If you contribute a new operation pattern, prefer something that has been tested in real Apple Notes usage.
+1. Fork the repository and create a branch.
+2. Implement your changes in `notes.sh` or docs.
+3. Run tests and verify the script.
+4. Submit a Pull Request.
