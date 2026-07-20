@@ -1,7 +1,7 @@
 # Apple Notes Skill
 
 Native Apple Notes automation for AI agents on macOS.
-Uses only built-in `osascript` JXA and Notes.app — no MCP server, database access, third-party CLI, or background service.
+Uses only built-in `osascript` with JavaScript for Automation (JXA) and Notes.app — no MCP server, database access, third-party CLI, or background service.
 
 ## What it does
 
@@ -41,7 +41,9 @@ Ask your agent:
 - “Move the confirmed notes from Inbox to Archive.”
 
 ### Minimal Run Example (Manual Test)
+
 Verify permission and functionality directly in your terminal:
+
 ```bash
 ./notes.sh list-folders
 ./notes.sh search-notes "test"
@@ -58,6 +60,7 @@ Verify permission and functionality directly in your terminal:
 This is an Apple Notes operator, not a RAG system, database adapter, or general-purpose desktop automation framework.
 
 Attachments, scans, drawings, checklists, shared-note collaboration, and nested folders are outside the current compatibility guarantee.
+Multiple folders with the exact same name are also not supported.
 
 For design philosophy and advanced workflows, see [advanced-workflows.md](file:///Users/mac/apple-notes-skill/docs/advanced-workflows.md).
 

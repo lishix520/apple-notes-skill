@@ -1,5 +1,5 @@
 #!/bin/bash
-# Apple Notes CLI Wrapper for AI Agents (v0.3.0)
+# Apple Notes CLI Wrapper for AI Agents (v0.3.1)
 # Uses only built-in osascript JXA (JavaScript for Automation) and Notes.app.
 
 set -euo pipefail
@@ -7,25 +7,56 @@ set -euo pipefail
 # Global variables
 CONFIRM=0
 JSON_MODE=0
+IF_MODIFIED_AT=""
 ARGS=()
 
-for arg in "$@"; do
-    if [ "$arg" = "--json" ]; then
-        JSON_MODE=1
-    elif [ "$arg" = "--confirm" ]; then
-        CONFIRM=1
-    else
-        ARGS+=("$arg")
-    fi
+# Parse global flags and handle -- separator
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --json)
+            JSON_MODE=1
+            shift
+            ;;
+        --confirm)
+            CONFIRM=1
+            shift
+            ;;
+        --if-modified-at)
+            if [ "$#" -lt 2 ]; then
+                echo "Error: --if-modified-at requires a timestamp value" >&2
+                exit 2
+            fi
+            IF_MODIFIED_AT="$2"
+            shift 2
+            ;;
+        --)
+            shift
+            while [ "$#" -gt 0 ]; do
+                ARGS+=("$1")
+                shift
+            done
+            break
+            ;;
+        -*)
+            echo "Error: Unknown option $1" >&2
+            exit 2
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
 done
 
 show_help() {
-    echo "Apple Notes Skill CLI (v0.3.0)"
+    echo "Apple Notes Skill CLI (v0.3.1)"
     echo "Usage: $0 [options] <command> [args...]"
     echo ""
     echo "Options:"
-    echo "  --json              Output machine-readable JSON"
-    echo "  --confirm           Acknowledge and proceed with destructive actions"
+    echo "  --json                       Output machine-readable JSON"
+    echo "  --confirm                    Acknowledge and proceed with destructive actions"
+    echo "  --if-modified-at <timestamp> Guard updates with optimistic concurrency check"
+    echo "  --                           Stop parsing options (useful if inputs start with dashes)"
     echo ""
     echo "Create Commands:"
     echo "  create-note-text <title> <folder> <plain_text>"
@@ -64,11 +95,12 @@ fi
 
 # Function containing the JXA heredoc to prevent shell quoting bugs inside command substitutions
 run_jxa() {
-    env CONFIRM="$CONFIRM" JSON_MODE="$JSON_MODE" osascript -l JavaScript - "${ARGS[@]}" <<'EOF'
+    env CONFIRM="$CONFIRM" JSON_MODE="$JSON_MODE" IF_MODIFIED_AT="$IF_MODIFIED_AT" osascript -l JavaScript - "${ARGS[@]}" <<'EOF'
 ObjC.import('stdlib');
 
 const confirmMode = $.getenv('CONFIRM') === '1';
 const jsonMode = $.getenv('JSON_MODE') === '1';
+const expectedModifiedAt = $.getenv('IF_MODIFIED_AT') || "";
 
 const Notes = Application('Notes');
 Notes.includeStandardAdditions = true;
@@ -79,6 +111,29 @@ function escapeHTML(text) {
                .replace(/>/g, "&gt;")
                .replace(/"/g, "&quot;")
                .replace(/'/g, "&#039;");
+}
+
+function successPayload(data) {
+    if (jsonMode) {
+        return "JSON_SUCCESS:" + JSON.stringify({ ok: true, data: data });
+    } else {
+        return "TEXT_SUCCESS:" + (typeof data === 'string' ? data : JSON.stringify(data));
+    }
+}
+
+function errorPayload(code, message, details) {
+    if (jsonMode) {
+        return "JSON_ERROR:" + code + ":" + JSON.stringify({
+            ok: false,
+            error: {
+                code: code,
+                message: message,
+                details: details || null
+            }
+        });
+    } else {
+        return "TEXT_ERROR:" + code + ":" + message + (details ? "\nDETAILS: " + JSON.stringify(details) : "");
+    }
 }
 
 function resolveNote(title, folderName) {
@@ -130,7 +185,6 @@ function enforceConfirm(targetType, targetName, targetDetails) {
 function run(argv) {
     try {
         const cmd = argv[0];
-        let data = "";
         
         if (cmd === "create-note-text") {
             const title = argv[1];
@@ -139,6 +193,9 @@ function run(argv) {
             if (!title || !folderName || plainText === undefined) throw { code: 2, message: "Usage: create-note-text <title> <folder> <plain_text>" };
             
             const folders = Notes.folders.whose({ name: folderName });
+            if (folders.length > 1) {
+                throw { code: 4, message: "Multiple folders found with the name '" + folderName + "'. Operation aborted to prevent ambiguous location." };
+            }
             let folder;
             if (folders.length === 0) {
                 folder = Notes.Folder({ name: folderName });
@@ -151,7 +208,7 @@ function run(argv) {
             folder.notes.push(note);
             
             const meta = { id: note.id(), title: note.name(), folder: folderName, modified_at: note.modificationDate().toISOString() };
-            data = jsonMode ? JSON.stringify(meta) : "Created note: " + note.name() + " (" + note.id() + ") in folder " + folderName;
+            return successPayload(meta);
         }
         else if (cmd === "create-note-html") {
             const title = argv[1];
@@ -160,6 +217,9 @@ function run(argv) {
             if (!title || !folderName || htmlContent === undefined) throw { code: 2, message: "Usage: create-note-html <title> <folder> <body_html>" };
             
             const folders = Notes.folders.whose({ name: folderName });
+            if (folders.length > 1) {
+                throw { code: 4, message: "Multiple folders found with the name '" + folderName + "'. Operation aborted to prevent ambiguous location." };
+            }
             let folder;
             if (folders.length === 0) {
                 folder = Notes.Folder({ name: folderName });
@@ -171,18 +231,19 @@ function run(argv) {
             folder.notes.push(note);
             
             const meta = { id: note.id(), title: note.name(), folder: folderName, modified_at: note.modificationDate().toISOString() };
-            data = jsonMode ? JSON.stringify(meta) : "Created note: " + note.name() + " (" + note.id() + ") in folder " + folderName;
+            return successPayload(meta);
         }
         else if (cmd === "create-folder") {
             const folderName = argv[1];
             if (!folderName) throw { code: 2, message: "Usage: create-folder <folder>" };
             
             const folders = Notes.folders.whose({ name: folderName });
-            if (folders.length === 0) {
-                const folder = Notes.Folder({ name: folderName });
-                Notes.folders.push(folder);
+            if (folders.length > 0) {
+                return successPayload({ already_exists: true, folder: folderName });
             }
-            data = jsonMode ? JSON.stringify({ folder: folderName }) : "Created folder: " + folderName;
+            const folder = Notes.Folder({ name: folderName });
+            Notes.folders.push(folder);
+            return successPayload({ already_exists: false, folder: folderName });
         }
         else if (cmd === "read-note-id") {
             const noteId = argv[1];
@@ -196,17 +257,13 @@ function run(argv) {
                 throw { code: 3, message: "Note with ID '" + noteId + "' not found" };
             }
             const folder = note.container();
-            if (jsonMode) {
-                data = JSON.stringify({
-                    id: note.id(),
-                    title: note.name(),
-                    folder: folder.name(),
-                    modified_at: note.modificationDate().toISOString(),
-                    body: note.body()
-                });
-            } else {
-                data = note.body();
-            }
+            return successPayload({
+                id: note.id(),
+                title: note.name(),
+                folder: folder.name(),
+                modified_at: note.modificationDate().toISOString(),
+                body: note.body()
+            });
         }
         else if (cmd === "read-note-title") {
             const title = argv[1];
@@ -215,17 +272,13 @@ function run(argv) {
             
             const note = resolveNote(title, folderName);
             const folder = note.container();
-            if (jsonMode) {
-                data = JSON.stringify({
-                    id: note.id(),
-                    title: note.name(),
-                    folder: folder.name(),
-                    modified_at: note.modificationDate().toISOString(),
-                    body: note.body()
-                });
-            } else {
-                data = note.body();
-            }
+            return successPayload({
+                id: note.id(),
+                title: note.name(),
+                folder: folder.name(),
+                modified_at: note.modificationDate().toISOString(),
+                body: note.body()
+            });
         }
         else if (cmd === "append-note-text") {
             const noteId = argv[1];
@@ -239,11 +292,17 @@ function run(argv) {
             } catch (e) {
                 throw { code: 3, message: "Note with ID '" + noteId + "' not found" };
             }
+            
+            const lastModified = note.modificationDate().toISOString();
+            if (expectedModifiedAt && lastModified !== expectedModifiedAt) {
+                throw { code: 7, message: "Optimistic concurrency check failed. Note was modified since read.", data: { current_modified_at: lastModified, expected_modified_at: expectedModifiedAt } };
+            }
+            
             const currentBody = note.body();
             const escapedText = "<div>" + escapeHTML(plainText).replace(/\n/g, "<br></div><div>") + "</div>";
             note.body = currentBody + escapedText;
             
-            data = jsonMode ? JSON.stringify({ success: true, id: noteId }) : "Appended text to note " + noteId;
+            return successPayload({ success: true, id: noteId, modified_at: note.modificationDate().toISOString() });
         }
         else if (cmd === "append-note-html") {
             const noteId = argv[1];
@@ -257,10 +316,16 @@ function run(argv) {
             } catch (e) {
                 throw { code: 3, message: "Note with ID '" + noteId + "' not found" };
             }
+            
+            const lastModified = note.modificationDate().toISOString();
+            if (expectedModifiedAt && lastModified !== expectedModifiedAt) {
+                throw { code: 7, message: "Optimistic concurrency check failed. Note was modified since read.", data: { current_modified_at: lastModified, expected_modified_at: expectedModifiedAt } };
+            }
+            
             const currentBody = note.body();
             note.body = currentBody + htmlContent;
             
-            data = jsonMode ? JSON.stringify({ success: true, id: noteId }) : "Appended HTML to note " + noteId;
+            return successPayload({ success: true, id: noteId, modified_at: note.modificationDate().toISOString() });
         }
         else if (cmd === "move-note-id") {
             const noteId = argv[1];
@@ -282,10 +347,12 @@ function run(argv) {
             if (destFolders.length === 0) {
                 throw { code: 3, message: "Destination folder '" + destFolder + "' not found. Please create it first." };
             }
+            if (destFolders.length > 1) {
+                throw { code: 4, message: "Multiple destination folders found with the name '" + destFolder + "'. Move aborted." };
+            }
             Notes.move(note, { to: destFolders[0] });
             
-            data = jsonMode ? JSON.stringify({ success: true, id: noteId, from_folder: sourceFolder, to_folder: destFolder })
-                            : "Moved note " + note.name() + " (" + noteId + ") to folder " + destFolder;
+            return successPayload({ success: true, id: noteId, from_folder: sourceFolder, to_folder: destFolder });
         }
         else if (cmd === "move-note-title") {
             const title = argv[1];
@@ -302,10 +369,12 @@ function run(argv) {
             if (destFolders.length === 0) {
                 throw { code: 3, message: "Destination folder '" + toFolder + "' not found. Please create it first." };
             }
+            if (destFolders.length > 1) {
+                throw { code: 4, message: "Multiple destination folders found with the name '" + toFolder + "'. Move aborted." };
+            }
             Notes.move(note, { to: destFolders[0] });
             
-            data = jsonMode ? JSON.stringify({ success: true, id: noteId, from_folder: fromFolder, to_folder: toFolder })
-                            : "Moved note " + title + " (" + noteId + ") to folder " + toFolder;
+            return successPayload({ success: true, id: noteId, from_folder: fromFolder, to_folder: toFolder });
         }
         else if (cmd === "delete-note-id") {
             const noteId = argv[1];
@@ -323,8 +392,7 @@ function run(argv) {
             enforceConfirm("Delete Note", note.name(), { id: noteId, folder: folderName });
             
             Notes.delete(note);
-            
-            data = jsonMode ? JSON.stringify({ success: true, id: noteId }) : "Deleted note " + noteId;
+            return successPayload({ success: true, id: noteId });
         }
         else if (cmd === "delete-note-title") {
             const title = argv[1];
@@ -337,8 +405,7 @@ function run(argv) {
             enforceConfirm("Delete Note", title, { id: noteId, folder: folderName });
             
             Notes.delete(note);
-            
-            data = jsonMode ? JSON.stringify({ success: true, id: noteId }) : "Deleted note " + title + " (" + noteId + ")";
+            return successPayload({ success: true, id: noteId });
         }
         else if (cmd === "delete-folder") {
             const folderName = argv[1];
@@ -348,14 +415,16 @@ function run(argv) {
             if (folders.length === 0) {
                 throw { code: 3, message: "Folder '" + folderName + "' not found" };
             }
+            if (folders.length > 1) {
+                throw { code: 4, message: "Multiple folders match the name '" + folderName + "'. Please rename them to be unique before deletion." };
+            }
             const folder = folders[0];
             const count = folder.notes.length;
             
             enforceConfirm("Delete Folder", folderName, { note_count: count });
             
             Notes.delete(folder);
-            
-            data = jsonMode ? JSON.stringify({ success: true, folder: folderName }) : "Deleted folder " + folderName;
+            return successPayload({ success: true, folder: folderName });
         }
         else if (cmd === "search-notes") {
             const queryText = argv[1];
@@ -379,8 +448,7 @@ function run(argv) {
                     }
                 }
             }
-            data = jsonMode ? JSON.stringify(result, null, 2)
-                            : result.map(r => r.folder + "\t" + r.title + "\t" + r.id).join("\n");
+            return successPayload(result);
         }
         else if (cmd === "list-folders") {
             const folders = Notes.folders();
@@ -388,7 +456,7 @@ function run(argv) {
             for (let f = 0; f < folders.length; f++) {
                 result.push(folders[f].name());
             }
-            data = jsonMode ? JSON.stringify(result) : result.join("\n");
+            return successPayload(result);
         }
         else if (cmd === "list-notes") {
             const folderName = argv[1];
@@ -397,6 +465,9 @@ function run(argv) {
             const folders = Notes.folders.whose({ name: folderName });
             if (folders.length === 0) {
                 throw { code: 3, message: "Folder '" + folderName + "' not found" };
+            }
+            if (folders.length > 1) {
+                throw { code: 4, message: "Multiple folders found with the name '" + folderName + "'. Operation aborted to prevent ambiguous location." };
             }
             const notes = folders[0].notes();
             const result = [];
@@ -408,8 +479,7 @@ function run(argv) {
                     modified_at: notes[n].modificationDate().toISOString()
                 });
             }
-            data = jsonMode ? JSON.stringify(result, null, 2)
-                            : result.map(r => r.title + "\t" + r.modified_at + "\t" + r.id).join("\n");
+            return successPayload(result);
         }
         else if (cmd === "get-date-id") {
             const noteId = argv[1];
@@ -422,8 +492,7 @@ function run(argv) {
             } catch (e) {
                 throw { code: 3, message: "Note with ID '" + noteId + "' not found" };
             }
-            const dateStr = note.modificationDate().toISOString();
-            data = jsonMode ? JSON.stringify({ id: noteId, modified_at: dateStr }) : dateStr;
+            return successPayload({ id: noteId, modified_at: note.modificationDate().toISOString() });
         }
         else if (cmd === "get-date-title") {
             const title = argv[1];
@@ -431,12 +500,11 @@ function run(argv) {
             if (!title || !folderName) throw { code: 2, message: "Usage: get-date-title <title> <folder>" };
             
             const note = resolveNote(title, folderName);
-            const dateStr = note.modificationDate().toISOString();
-            data = jsonMode ? JSON.stringify({ id: note.id(), title: title, folder: folderName, modified_at: dateStr }) : dateStr;
+            return successPayload({ id: note.id(), title: title, folder: folderName, modified_at: note.modificationDate().toISOString() });
         }
         else if (cmd === "count-all") {
             const count = Notes.notes.length;
-            data = jsonMode ? JSON.stringify({ count: count }) : String(count);
+            return successPayload(jsonMode ? { count: count } : String(count));
         }
         else if (cmd === "count-folder") {
             const folderName = argv[1];
@@ -446,20 +514,18 @@ function run(argv) {
             if (folders.length === 0) {
                 throw { code: 3, message: "Folder '" + folderName + "' not found" };
             }
+            if (folders.length > 1) {
+                throw { code: 4, message: "Multiple folders found with the name '" + folderName + "'. Operation aborted." };
+            }
             const count = folders[0].notes.length;
-            data = jsonMode ? JSON.stringify({ folder: folderName, count: count }) : String(count);
+            return successPayload(jsonMode ? { folder: folderName, count: count } : String(count));
         }
         else {
             throw { code: 2, message: "Unknown command: " + cmd };
         }
         
-        return "STATUS:SUCCESS\nDATA:" + data;
     } catch (e) {
-        let errData = "";
-        if (e.data) {
-            errData = "\nDATA:" + JSON.stringify(e.data);
-        }
-        return "STATUS:ERROR\nCODE:" + (e.code || 6) + "\nMESSAGE:" + (e.message || String(e)) + errData;
+        return errorPayload(e.code || 6, e.message || String(e), e.data);
     }
 }
 EOF
@@ -469,25 +535,27 @@ EOF
 OUTPUT=$(run_jxa)
 
 # Parse JXA output and handle standard exit codes
-STATUS=$(echo "$OUTPUT" | grep "^STATUS:" | cut -d':' -f2-)
+FIRST_LINE=$(echo "$OUTPUT" | head -n 1)
+TYPE=$(echo "$FIRST_LINE" | cut -d':' -f1)
 
-if [ "$STATUS" = "ERROR" ]; then
-    CODE=$(echo "$OUTPUT" | grep "^CODE:" | cut -d':' -f2-)
-    MESSAGE=$(echo "$OUTPUT" | grep "^MESSAGE:" | cut -d':' -f2-)
-    DATA=$(echo "$OUTPUT" | sed -n '/^DATA:/,$p' | sed 's/^DATA://')
-    
-    if [ "$JSON_MODE" = "1" ]; then
-        # Pure single-quoted shell formatting to prevent nested quote parsing failures
-        echo '{"error": "'"$MESSAGE"'", "code": '"$CODE"', "details": '"$DATA"'}' >&2
-    else
-        echo "Error: $MESSAGE" >&2
-        if [ -n "$DATA" ] && [ "$DATA" != "undefined" ]; then
-            echo "$DATA" >&2
-        fi
-    fi
+if [ "$TYPE" = "JSON_SUCCESS" ]; then
+    # Output standard JSON to stdout
+    echo "$OUTPUT" | sed 's/^JSON_SUCCESS://'
+    exit 0
+elif [ "$TYPE" = "JSON_ERROR" ]; then
+    CODE=$(echo "$FIRST_LINE" | cut -d':' -f2)
+    # Output standard JSON error payload to stderr
+    echo "$OUTPUT" | sed "s/^JSON_ERROR:$CODE://" >&2
     exit "$CODE"
-elif [ "$STATUS" = "SUCCESS" ]; then
-    echo "$OUTPUT" | sed -n '/^DATA:/,$p' | sed 's/^DATA://'
+elif [ "$TYPE" = "TEXT_SUCCESS" ]; then
+    # Output raw text to stdout
+    echo "$OUTPUT" | sed 's/^TEXT_SUCCESS://'
+    exit 0
+elif [ "$TYPE" = "TEXT_ERROR" ]; then
+    CODE=$(echo "$FIRST_LINE" | cut -d':' -f2)
+    # Output error details to stderr
+    echo "$OUTPUT" | sed "s/^TEXT_ERROR:$CODE://" >&2
+    exit "$CODE"
 else
     echo "Execution failed:" >&2
     echo "$OUTPUT" >&2
